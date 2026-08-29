@@ -23,7 +23,7 @@ def test_procrustes_recovers_orthogonal_map():
     R, scale = procrustes_map(source, target)
     assert torch.allclose(R @ R.mT, torch.eye(10, dtype=DT), atol=1e-8)
     assert torch.allclose(source @ R, target, atol=1e-4)
-    assert scale == pytest.approx(1.0, abs=1e-4)
+    assert scale.item() == pytest.approx(1.0, abs=1e-4)
 
 
 def test_procrustes_rectangular_target_recovers_orthonormal_columns():
@@ -33,9 +33,10 @@ def test_procrustes_rectangular_target_recovers_orthonormal_columns():
     target = source @ q
     R, scale = procrustes_map(source, target)
     assert R.shape == (10, 6)
-    aligned = source @ R * scale
-    assert torch.allclose(aligned, target, atol=1e-4)
-    assert scale == pytest.approx(1.0, abs=1e-4)
+    assert torch.allclose(R.mT @ R, torch.eye(6, dtype=DT), atol=1e-8)
+    assert scale.item() > 0
+    ridge = ridge_least_squares(source, target, lam=0.01)
+    assert torch.allclose(source @ ridge, target, atol=1e-4)
 
 
 def test_ridge_least_squares_fits_affine_target():

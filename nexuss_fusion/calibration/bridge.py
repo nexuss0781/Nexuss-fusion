@@ -35,6 +35,8 @@ class CalibrationBridge:
         cls, source: torch.Tensor, target: torch.Tensor, lam: float = 1e-3, backend: str | None = None
     ) -> dict:
         """Return fitted bridge: whitening (train stats) + procrustes R, scale + ridge A."""
+        source = source.double()
+        target = target.double()
         normalizer = normalize.Normalizer(source.shape)
         norm_src = normalizer.fit_transform(source)
         R, scale = procrustes.procrustes_map(norm_src, target, backend=backend)
