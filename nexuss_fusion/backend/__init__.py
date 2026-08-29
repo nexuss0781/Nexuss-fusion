@@ -18,8 +18,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-import torch
-
 log = logging.getLogger(__name__)
 
 ENV_KEY = "NEXUSS_FUSION_BACKEND"
