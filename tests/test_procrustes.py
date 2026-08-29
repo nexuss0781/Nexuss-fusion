@@ -35,7 +35,7 @@ def test_procrustes_rectangular_target_recovers_orthonormal_columns():
     assert R.shape == (10, 6)
     assert torch.allclose(R.mT @ R, torch.eye(6, dtype=DT), atol=1e-8)
     assert scale.item() > 0
-    ridge = ridge_least_squares(source, target, lam=0.01)
+    ridge = ridge_least_squares(source, target, lam=1e-8)
     assert torch.allclose(source @ ridge, target, atol=1e-4)
 
 
