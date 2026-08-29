@@ -14,9 +14,10 @@ def procrustes(source: torch.Tensor, target: torch.Tensor) -> tuple[torch.Tensor
         raise ValueError("procrustes expects 2-D tensors")
     if source.shape[0] != target.shape[0]:
         raise ValueError("procrustes expects paired rows (shape[0] mismatch)")
-    U, _, Vt = torch.linalg.svd(target.T @ source)
-    R = Vt.T @ U.T
-    scale = torch.sum((target.T @ source) * R) / torch.sum(source * source)
+    corr = target.T @ source  # (d_tgt, d_src)
+    U, _, Vt = torch.linalg.svd(corr)
+    R = Vt.T @ U.T  # (d_src, d_tgt)
+    scale = torch.sum(corr * R.mT) / torch.sum(source * source)
     return R, scale
 
 

@@ -38,8 +38,8 @@ def test_backend_dispatch_env_auto(tmp_path, monkeypatch):
 
 def test_procrustes_map_uses_backend_kernel():
     torch.manual_seed(3)
-    src = torch.randn(30, 5)
-    q, _ = torch.linalg.qr(torch.randn(5, 5))
+    src = torch.randn(30, 5).double()
+    q, _ = torch.linalg.qr(torch.randn(5, 5).double())
     tgt = src @ q
     R, scale = procrustes_map(src, tgt, backend="torch")
-    assert torch.allclose(src @ R, tgt, atol=1e-4)
+    assert torch.allclose(src @ R * scale, tgt, atol=1e-4)

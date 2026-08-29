@@ -24,12 +24,10 @@ class CalibrationBridge:
             raise ValueError("source and target row counts must match")
         if not source_rows:
             raise ValueError("no paired rows to calibrate")
-        src = torch.cat([r.double() for r in source_rows], dim=0).reshape(
-            len(source_rows), source_rows[0].shape[-1]
-        )
-        tgt = torch.cat([r.double() for r in target_rows], dim=0).reshape(
-            len(target_rows), target_rows[0].shape[-1]
-        )
+        if source_rows[0].shape[0] != target_rows[0].shape[0]:
+            raise ValueError("paired rows must have matching examples")
+        src = torch.cat([r.double() for r in source_rows], dim=0)
+        tgt = torch.cat([r.double() for r in target_rows], dim=0)
         return src, tgt
 
     @classmethod
