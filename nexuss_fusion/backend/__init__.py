@@ -16,6 +16,7 @@ import logging
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 import torch
 
@@ -23,7 +24,7 @@ log = logging.getLogger(__name__)
 
 ENV_KEY = "NEXUSS_FUSION_BACKEND"
 
-BackendFn = Callable[..., torch.Tensor]
+BackendFn = Callable[..., Any]
 
 
 @dataclass(frozen=True)
@@ -86,6 +87,7 @@ def eigen_parity_ok() -> bool:
 
 def get_backend(name: str | None = None) -> Backend:
     _resolve_all()
+    assert _backends is not None
     requested = (name or os.environ.get(ENV_KEY) or "auto").lower()
     if requested not in _backends:
         requested = "auto"

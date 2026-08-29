@@ -29,13 +29,10 @@ class Normalizer:
     def transform(self, h: torch.Tensor) -> torch.Tensor:
         if self.mean is None or self.std is None or self.scale is None:
             raise RuntimeError("Normalizer not fitted")
-        return self._whiten(h)
+        return (h - self.mean) / self.std * self.scale
 
     def fit_transform(self, stack: torch.Tensor) -> torch.Tensor:
         return self.fit(stack).transform(stack)
-
-    def _whiten(self, h: torch.Tensor) -> torch.Tensor:
-        return (h - self.mean) / self.std * self.scale
 
     def state_dict(self) -> dict[str, list[float]]:
         if self.mean is None or self.std is None or self.scale is None:
