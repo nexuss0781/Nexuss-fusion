@@ -33,7 +33,7 @@ SHAPES = ["circle", "square", "triangle", "stripes"]
 
 def _color_name(rgb: tuple[int, int, int]) -> str:
     for name, ref in COLORS.items():
-        if all(abs(a - b) < 30 for a, b in zip(rgb, ref)):
+        if all(abs(a - b) < 30 for a, b in zip(rgb, ref, strict=True)):
             return name
     return "dark"
 
