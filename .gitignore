@@ -7,4 +7,8 @@ dist/
 .pytest_cache/
 *.gguf
 features_cache/
+features-cache/
+phase2-results/
+bench/
 runs/
+*.so

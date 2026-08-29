@@ -1,0 +1,46 @@
+name: phase2-vision
+
+on:
+  push:
+    branches: [main]
+    paths: ["nexuss_fusion/**", ".github/workflows/phase2-vision.yml"]
+  workflow_dispatch:
+
+jobs:
+  phase2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install "transformers>=4.46" "pillow>=10" pytest
+
+      - name: Unit tests
+        run: pytest -q
+
+      - name: Generate synthetic calibration images + captions
+        run: python scripts/make_synthetic_calib.py bench/calib 24 7
+
+      - name: Cache populates (extractors load HF models)
+        run: |
+          python -m nexuss_fusion.run.phase2 --images-dir bench/calib --cache features-cache --extract --out phase2-results --verbose
+        continue-on-error: true
+
+      - name: Phase 2 fit + held-out eval
+        run: python -m nexuss_fusion.run.phase2 --images-dir bench/calib --cache features-cache --out phase2-results --verbose
+
+      - name: Upload results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase2-results
+          path: |
+            phase2-results/
+            features-cache/*.pt
