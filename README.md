@@ -44,6 +44,7 @@ PROPOSAL.md                  # what, why, architecture, roadmap, gates
 docs/MATHS.md                # the fusion mathematics (core contribution)
 docs/ARCHITECTURE.md         # system design + training stages
 docs/FUSION-MATRIX.md        # measured config of the three target models
+docs/PHASE2-RESULTS.md       # first experiment campaign (recorded + interpreted)
 nexuss_fusion/
   backend/                   # torch primary + optional eigen kernels + parity
   math/                      # alignment primitives (Procrustes, whitening, resampling)
@@ -65,14 +66,20 @@ pyproject.toml
 
 ## Status
 
-Phase 2 (vision→text bridge) in progress:
+Phase 2 (vision→text bridge) shipped end-to-end on CI:
 
 - [x] torch-first math core (backend interface, Procrustes, ridge, whitening, resamplers, interleaver, fused loss)
 - [x] content-addressed feature cache + immutable manifests
 - [x] CalibrationBridge (Procrustes-init ridge + whitening) + held-out eval with acceptance gates
-- [x] CI: lint/typecheck/unit + `phase2-vision` experiment workflow
-- [ ] validation on the 10 SPACE benchmark images + hand captions
+- [x] CI: lint/typecheck/unit + `phase2-vision` experiment workflow (green)
+- [x] First experiment campaign + write-up: `docs/PHASE2-RESULTS.md`
+- [ ] validation on the 10 SPACE benchmark images + hand captions (run strict)
 - [ ] audio bridge + multi-branch fusion (Phase 3)
+
+The first campaign ran the pipeline end-to-end on 24 synthetic pairs: real
+SigLIP states from SmolVLM2-500M and SmolLM2 caption embeddings, 19/5 split,
+all three gates recorded — alignment below threshold on synthetic data (the
+machinery works; the synthetic signal doesn't). See `docs/PHASE2-RESULTS.md`.
 
 See `PROPOSAL.md` for the staged plan and gates.
 
