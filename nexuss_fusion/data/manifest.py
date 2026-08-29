@@ -29,10 +29,10 @@ def content_hash(payload: dict[str, Any]) -> str:
 
 def write_manifest(manifest: dict[str, Any], path: str | Path) -> None:
     manifest = {**manifest, "schema_version": MANIFEST_SCHEMA}
-    Path(path).write_text(json.dumps(manifest, indent=2, sort_keys=True))
-    Path(path).with_suffix(Path(path).suffix + ".sha256").write_text(
-        sha256_bytes(json.dumps(manifest, sort_keys=True).encode()) + "\n"
-    )
+    data = json.dumps(manifest, indent=2, sort_keys=True)
+    Path(path).write_text(data)
+    digest_file = Path(path).with_suffix(Path(path).suffix + ".sha256")
+    digest_file.write_text(sha256_bytes(data.encode()) + "\n")
 
 
 def load_manifest(path: str | Path) -> dict[str, Any]:
