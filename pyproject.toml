@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nexuss-fusion"
+version = "0.1.0"
+description = "Fuse different architectures/modalities into one native model via representation alignment."
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["nexuss_fusion*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
