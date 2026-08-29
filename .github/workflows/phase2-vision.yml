@@ -30,11 +30,33 @@ jobs:
 
       - name: Cache populates (extractors load HF models)
         run: |
-          python -m nexuss_fusion.run.phase2 --images-dir bench/calib --cache features-cache --extract --out phase2-results --verbose
-        continue-on-error: true
+          python -m nexuss_fusion.run.phase2 --images-dir bench/calib --cache features-cache --extract --out phase2-results
+
+      - name: Debug SmolVLM vision tower forward
+        run: |
+          python - <<'EOF'
+          import torch
+          import transformers
+          from PIL import Image
+          from nexuss_fusion.extract.vision import VisionExtractor
+          print("transformers version:", transformers.__version__)
+          ve = VisionExtractor()
+          proc, model = ve._ensure()
+          tower = model.model.vision_model
+          print("vision tower:", type(tower).__module__ + "." + type(tower).__name__)
+          img = Image.open("bench/calib/calib_00.jpg").convert("RGB")
+          inputs = proc(images=img, return_tensors="pt")
+          print("processor keys:", sorted(inputs.keys()))
+          pv = inputs["pixel_values"]
+          print("pixel_values:", tuple(pv.shape), pv.dtype)
+          with torch.no_grad():
+              out = tower(pv)
+          print("output type:", type(out).__module__ + "." + type(out).__name__)
+          print("output attrs:", [k for k in out.keys()] if hasattr(out, "keys") else dir(out)[:12])
+          EOF
 
       - name: Phase 2 fit + held-out eval
-        run: python -m nexuss_fusion.run.phase2 --images-dir bench/calib --cache features-cache --out phase2-results --verbose
+        run: python -m nexuss_fusion.run.phase2 --images-dir bench/calib --cache features-cache --out phase2-results
 
       - name: Upload results artifact
         if: always()
