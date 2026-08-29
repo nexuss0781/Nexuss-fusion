@@ -15,7 +15,7 @@ def procrustes(source: torch.Tensor, target: torch.Tensor) -> tuple[torch.Tensor
     if source.shape[0] != target.shape[0]:
         raise ValueError("procrustes expects paired rows (shape[0] mismatch)")
     corr = target.T @ source  # (d_tgt, d_src)
-    U, _, Vt = torch.linalg.svd(corr)
+    U, _, Vt = torch.linalg.svd(corr, full_matrices=False)  # U (d_tgt,r), Vt (r,d_src)
     R = Vt.T @ U.T  # (d_src, d_tgt)
     scale = torch.sum(corr * R.mT) / torch.sum(source * source)
     return R, scale
