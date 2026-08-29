@@ -12,7 +12,7 @@ dependencies = ["torch>=2.1"]
 [project.optional-dependencies]
 eigen = ["pybind11>=2.10", "Eigen"]
 dev = ["pytest>=7.4", "ruff>=0.4", "mypy>=1.10"]
-hf = ["transformers>=4.46", "pillow>=10"]
+hf = ["transformers>=4.46", "pillow>=10", "torchvision>=0.17", "num2words>=0.5.13"]
 
 [project.entry-points."console_scripts"]
 nexuss-fusion = "nexuss_fusion.cli:main"
