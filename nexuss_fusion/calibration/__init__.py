@@ -1,4 +1,5 @@
 """Calibration: fit the bridges that make heterogeneous spaces compatible."""
+
 from __future__ import annotations
 
 from .bridge import CalibrationBridge

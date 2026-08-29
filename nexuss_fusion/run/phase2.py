@@ -3,6 +3,7 @@
 Fully CI-runable: features come from the content-addressed cache (never
 recomputed), so a clean runner can extract once, then fit/eval many times.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -41,7 +42,9 @@ def load_pairs(images_dir: Path, cache: FeaturesCache) -> tuple[torch.Tensor, to
         if not caption:
             log.warning("skipping %s: no caption", image_path)
             continue
-        img_key = cache.key({"kind": "image", "model": vision_model, "revision": vision_rev, "image": str(image_path)})
+        img_key = cache.key(
+            {"kind": "image", "model": vision_model, "revision": vision_rev, "image": str(image_path)}
+        )
         txt_key = caption_cache_key(cache, text_model, text_rev, caption)
         cached_img = cache.get(img_key)
         cached_txt = cache.get(txt_key)
@@ -126,7 +129,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--images-dir", default="benchmarks/vision/images")
     parser.add_argument("--cache", default="features-cache")
     parser.add_argument("--out", default="phase2-results")
-    parser.add_argument("--extract", action="store_true", help="populate the feature cache from HF extractors")
+    parser.add_argument(
+        "--extract", action="store_true", help="populate the feature cache from HF extractors"
+    )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--te", type=float, default=0.2)
     parser.add_argument("--lam", type=float, default=1e-3)
@@ -142,7 +147,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.extract:
         extract(images_dir, cache)
 
-    result = run_phase2(images_dir, Path(args.cache), Path(args.out), seed=args.seed, te=args.te, lam=args.lam)
+    result = run_phase2(
+        images_dir, Path(args.cache), Path(args.out), seed=args.seed, te=args.te, lam=args.lam
+    )
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if all(result["gates"].values()) else 1
 

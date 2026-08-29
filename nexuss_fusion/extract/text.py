@@ -1,4 +1,5 @@
 """Frozen text embedder: mean-pooled caption embeddings from SmolLM2-360M."""
+
 from __future__ import annotations
 
 import logging
@@ -17,7 +18,9 @@ def normalize_caption(caption: str) -> str:
 
 
 def caption_cache_key(cache, model_id: str, revision: str, caption: str) -> str:
-    return cache.key({"kind": "text", "model": model_id, "revision": revision, "caption": normalize_caption(caption)})
+    return cache.key(
+        {"kind": "text", "model": model_id, "revision": revision, "caption": normalize_caption(caption)}
+    )
 
 
 @dataclass

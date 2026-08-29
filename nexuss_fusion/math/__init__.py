@@ -1,4 +1,5 @@
 """Math: representation alignment, whitening, and sequence-length unification."""
+
 from __future__ import annotations
 
 from .normalize import Normalizer, canonicalize_whiten

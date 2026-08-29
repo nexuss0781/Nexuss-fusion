@@ -1,4 +1,5 @@
 """Frozen vision feature extractor: SigLIP patch states of SmolVLM2-500M."""
+
 from __future__ import annotations
 
 import logging
@@ -50,7 +51,9 @@ class VisionExtractor:
 
         rows = []
         for path in image_paths:
-            key = cache.key({"kind": "image", "model": self.model_id, "revision": self.revision, "image": path})
+            key = cache.key(
+                {"kind": "image", "model": self.model_id, "revision": self.revision, "image": path}
+            )
             states, _ = cache.compute_or_get(
                 key, lambda p=path: self._encode_single(Image.open(p).convert("RGB"))
             )
@@ -63,4 +66,6 @@ class VisionExtractor:
 
 def validate_patch_states(states: torch.Tensor, expected_hidden: int = SIGLIP_HIDDEN) -> None:
     if states.dim() != 2 or states.shape[-1] != expected_hidden:
-        raise ValueError(f"unexpected SigLIP state shape {tuple(states.shape)} (expected (patches, {expected_hidden}))")
+        raise ValueError(
+            f"unexpected SigLIP state shape {tuple(states.shape)} (expected (patches, {expected_hidden}))"
+        )

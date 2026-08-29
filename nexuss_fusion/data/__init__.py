@@ -1,4 +1,5 @@
 """Data: immutable manifests + content-addressed feature cache."""
+
 from __future__ import annotations
 
 from .features_cache import FeaturesCache

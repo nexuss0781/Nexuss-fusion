@@ -1,4 +1,5 @@
 """Held-out alignment metrics vs zero/random/whitening baselines."""
+
 from __future__ import annotations
 
 import torch

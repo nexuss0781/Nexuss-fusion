@@ -21,7 +21,12 @@ def test_fused_loss_combination():
         logits,
         labels,
         feature_terms=[(0.1, student, teacher)],
-        logit_term=(2.0, 0.5, torch.log_softmax(torch.randn(8, 10), dim=-1), torch.log_softmax(torch.randn(8, 10), dim=-1)),
+        logit_term=(
+            2.0,
+            0.5,
+            torch.log_softmax(torch.randn(8, 10), dim=-1),
+            torch.log_softmax(torch.randn(8, 10), dim=-1),
+        ),
     )
     assert total > 0
     assert set(parts) == {"answer", "feat", "logit_kl", "contrastive", "replay", "missing"}

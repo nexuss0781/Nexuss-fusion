@@ -3,6 +3,7 @@
 The native module `_eigen_native`.so is built by `ci/build_eigen.sh`; until it
 exists this module reports `loadable() == False` and the torch backend is used.
 """
+
 from __future__ import annotations
 
 import logging
@@ -73,7 +74,9 @@ def parity_check(atol: float = 1e-5, rtol: float = 1e-4) -> bool:
 
     r_eig, s_eig = procrustes(src, tgt)
     r_ref, s_ref = _tk.procrustes(src, tgt)
-    if not torch.allclose(r_eig, r_ref, atol=atol, rtol=rtol) or not torch.isclose(s_eig, s_ref, atol=atol, rtol=rtol):
+    if not torch.allclose(r_eig, r_ref, atol=atol, rtol=rtol) or not torch.isclose(
+        s_eig, s_ref, atol=atol, rtol=rtol
+    ):
         log.warning("eigen procrustes parity mismatch")
         return False
     w_eig = whiten(h, mean, std, scale)

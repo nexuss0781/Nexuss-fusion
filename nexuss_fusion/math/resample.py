@@ -1,4 +1,5 @@
 """Sequence-length unification via learned query resamplers (torch nn.Module)."""
+
 from __future__ import annotations
 
 import math

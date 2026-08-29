@@ -1,10 +1,10 @@
 """CLI: fusion plan, backend info, and experiment launchers."""
+
 from __future__ import annotations
 
 import argparse
 import json
 import sys
-from pathlib import Path
 
 from . import __version__
 from .backend import get_backend
@@ -26,7 +26,9 @@ def fusion_plan(specs: list[ModelSpec]) -> dict:
                 "source_hidden": spec.hidden_dim,
                 "target_hidden": decoder.hidden_dim,
                 "projector": f"{spec.hidden_dim} -> {decoder.hidden_dim} (procrustes-init)",
-                "natural_pairing": {"vision": "image <-> caption", "audio": "speech <-> transcript"}.get(spec.kind),
+                "natural_pairing": {"vision": "image <-> caption", "audio": "speech <-> transcript"}.get(
+                    spec.kind
+                ),
             }
         )
     return {
@@ -58,7 +60,11 @@ def main() -> None:
     if args.run:
         from .run.phase2 import main as phase2_main
 
-        sys.exit(phase2_main([f"--images-dir={args.specs[0]}" if args.specs else "--images-dir=benchmarks/vision/images"]))
+        sys.exit(
+            phase2_main(
+                [f"--images-dir={args.specs[0]}" if args.specs else "--images-dir=benchmarks/vision/images"]
+            )
+        )
 
     if args.list:
         for name, spec in SPECS.items():

@@ -1,4 +1,5 @@
 """Declarative model descriptors: the framework's 'any architecture' registry."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -50,9 +51,7 @@ AUDIO_MICRO = ModelSpec(
     notes="own projector 896->1024 NOT reused; nexus fusion trains 896->960 bridge; 0.80 GB q8_0",
 )
 
-SPECS: dict[str, ModelSpec] = {
-    s.name: s for s in (TEXT_MICRO, VISION_MICRO, AUDIO_MICRO)
-}
+SPECS: dict[str, ModelSpec] = {s.name: s for s in (TEXT_MICRO, VISION_MICRO, AUDIO_MICRO)}
 
 
 def spec_for(name: str) -> ModelSpec:

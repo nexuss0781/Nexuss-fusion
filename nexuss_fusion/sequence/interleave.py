@@ -1,4 +1,5 @@
 """One-native-sequence construction: typed interleaving + causal masks (torch)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -1,16 +1,15 @@
 """Calibration bridge: fit Procrustes/Ridge maps from paired cached features."""
+
 from __future__ import annotations
 
-import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import torch
 
 from ..data.manifest import write_manifest
 from ..math import normalize, procrustes
-from .split import split_by_key
 
 log = logging.getLogger(__name__)
 
@@ -18,17 +17,25 @@ log = logging.getLogger(__name__)
 @dataclass
 class CalibrationBridge:
     @staticmethod
-    def assemble(source_rows: list[torch.Tensor], target_rows: list[torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:
+    def assemble(
+        source_rows: list[torch.Tensor], target_rows: list[torch.Tensor]
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         if len(source_rows) != len(target_rows):
             raise ValueError("source and target row counts must match")
         if not source_rows:
             raise ValueError("no paired rows to calibrate")
-        src = torch.cat([r.double() for r in source_rows], dim=0).reshape(len(source_rows), source_rows[0].shape[-1])
-        tgt = torch.cat([r.double() for r in target_rows], dim=0).reshape(len(target_rows), target_rows[0].shape[-1])
+        src = torch.cat([r.double() for r in source_rows], dim=0).reshape(
+            len(source_rows), source_rows[0].shape[-1]
+        )
+        tgt = torch.cat([r.double() for r in target_rows], dim=0).reshape(
+            len(target_rows), target_rows[0].shape[-1]
+        )
         return src, tgt
 
     @classmethod
-    def fit(cls, source: torch.Tensor, target: torch.Tensor, lam: float = 1e-3, backend: str | None = None) -> dict:
+    def fit(
+        cls, source: torch.Tensor, target: torch.Tensor, lam: float = 1e-3, backend: str | None = None
+    ) -> dict:
         """Return fitted bridge: whitening (train stats) + procrustes R, scale + ridge A."""
         normalizer = normalize.Normalizer(source.shape)
         norm_src = normalizer.fit_transform(source)
@@ -50,7 +57,10 @@ class CalibrationBridge:
     def save(cls, bridge: dict, out_dir: str | Path, meta: dict) -> Path:
         out_dir = Path(out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
-        torch.save({"A": bridge["A"], "R": bridge["R"], "scale": bridge["scale"], "lam": bridge["lam"]}, out_dir / "bridge.pt")
+        torch.save(
+            {"A": bridge["A"], "R": bridge["R"], "scale": bridge["scale"], "lam": bridge["lam"]},
+            out_dir / "bridge.pt",
+        )
         manifest = {
             "meta": meta,
             "normalizer": bridge["normalizer"].state_dict(),
