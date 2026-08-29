@@ -7,6 +7,7 @@ exists this module reports `loadable() == False` and the torch backend is used.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import torch
 
@@ -14,7 +15,7 @@ from . import torch_kernels as _tk
 
 log = logging.getLogger(__name__)
 
-_native = None
+_native: Any = None
 
 
 def _try_import() -> bool:
@@ -22,7 +23,7 @@ def _try_import() -> bool:
     if _native is not None:
         return bool(_native)
     try:
-        from . import _eigen_native as mod  # type: ignore[no-redef]
+        from . import _eigen_native as mod  # type: ignore[attr-defined]
 
         _native = mod
     except ImportError as exc:  # pragma: no cover - platform dependent

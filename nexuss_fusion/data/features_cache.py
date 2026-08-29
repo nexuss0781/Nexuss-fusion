@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -44,7 +45,7 @@ class FeaturesCache:
         sidecar.write_text(json.dumps({"feature_key": feature_key, "entries": tensor.shape[0]}) + "\n")
         return path
 
-    def compute_or_get(self, feature_key: str, compute: callable) -> tuple[torch.Tensor, bool]:
+    def compute_or_get(self, feature_key: str, compute: Callable[[], torch.Tensor]) -> tuple[torch.Tensor, bool]:
         cached = self.get(feature_key)
         if cached is not None:
             return cached, False
