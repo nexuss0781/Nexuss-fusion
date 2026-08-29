@@ -31,7 +31,7 @@ def load_pairs(images_dir: Path, cache: FeaturesCache) -> tuple[torch.Tensor, to
     captions: dict[str, str] = {}
     captions_file = images_dir / "captions.json"
     if captions_file.exists():
-        captions = {p.name: str(v) for p, v in json.loads(captions_file.read_text()).items()}
+        captions = {str(k): str(v) for k, v in json.loads(captions_file.read_text()).items()}
     source_rows: list[torch.Tensor] = []
     target_rows: list[torch.Tensor] = []
     keys: list[str] = []
