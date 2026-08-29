@@ -52,15 +52,17 @@ class VisionExtractor:
     def encode_image_batch_cached(self, image_paths: list[str], cache) -> torch.Tensor:
         from PIL import Image
 
+        def _row(path: str) -> torch.Tensor:
+            states = self._encode_single(Image.open(path).convert("RGB"))
+            return states.mean(dim=0, keepdim=True)  # image-level source row (1, hidden)
+
         rows = []
         for path in image_paths:
             key = cache.key(
                 {"kind": "image", "model": self.model_id, "revision": self.revision, "image": path}
             )
-            states, _ = cache.compute_or_get(
-                key, lambda p=path: self._encode_single(Image.open(p).convert("RGB"))
-            )
-            rows.append(states.mean(dim=0, keepdim=True))  # image-level source row
+            row, _ = cache.compute_or_get(key, lambda p=path: _row(p))
+            rows.append(row)
         return torch.cat(rows, dim=0)
 
     def _encode_single(self, image_pil) -> torch.Tensor:
