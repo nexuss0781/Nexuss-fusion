@@ -30,10 +30,19 @@ jobs:
 
       - name: Cache populates (extractors load HF models)
         run: |
-          python -m nexuss_fusion.run.phase2 --images-dir bench/calib --cache features-cache --extract --out phase2-results
+          python -m nexuss_fusion.run.phase2 --images-dir bench/calib --cache features-cache --extract --extract-only
 
-      - name: Phase 2 fit + held-out eval
-        run: python -m nexuss_fusion.run.phase2 --images-dir bench/calib --cache features-cache --out phase2-results
+      - name: Phase 2 fit + held-out eval (synthetic sanity: gates recorded, not enforced)
+        run: python -m nexuss_fusion.run.phase2 --images-dir bench/calib --cache features-cache --out phase2-results --no-strict
+
+      - name: Surface results
+        run: python - <<'EOF'
+          import json
+          from pathlib import Path
+          p = Path("phase2-results/phase2.json")
+          r = json.loads(p.read_text()) if p.exists() else {"status": "missing"}
+          print(json.dumps(r, indent=2))
+          EOF
 
       - name: Upload results artifact
         if: always()
