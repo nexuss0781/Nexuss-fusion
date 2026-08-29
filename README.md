@@ -29,6 +29,14 @@ expert emits sequential features and that paired data exists to estimate the
 alignment maps. No shared initialization, matching layers, or compatible
 tokenizers are ever required.
 
+## Runtime & backends
+
+PyTorch-first. All trainable math runs in autograd-capable torch. A validated
+C++/Eigen fallback (`cpp/eigen_kernels.cpp`, built by `ci/build_eigen.sh`) can
+be opted into for hot non-trainable kernels (Procrustes init, whitening) via
+`NEXUSS_FUSION_BACKEND=eigen`; it is only selected after a parity self-test
+against the torch kernels passes. `auto` prefers torch.
+
 ## Repository layout
 
 ```
@@ -37,18 +45,35 @@ docs/MATHS.md                # the fusion mathematics (core contribution)
 docs/ARCHITECTURE.md         # system design + training stages
 docs/FUSION-MATRIX.md        # measured config of the three target models
 nexuss_fusion/
+  backend/                   # torch primary + optional eigen kernels + parity
   math/                      # alignment primitives (Procrustes, whitening, resampling)
   sequence/                  # one-native-sequence interleaving + masks
   losses/                    # fused training objective
   specs/                     # declarative model descriptors
-  cli.py                     # prints the fusion plan for any spec set
-tests/                       # pytest for the math/spec primitives
+  extract/                   # frozen modality encoders (SigLIP states, SmolLM2 text)
+  data/                      # content-addressed feature cache + immutable manifests
+  calibration/               # Procrustes/Ridge bridges + deterministic splits
+  eval/                      # held-out alignment metrics + acceptance gates
+  run/phase2.py              # phase 2 experiment entrypoint
+ci/                          # eigen build script
+cpp/                         # Eigen fallback kernels
+scripts/                     # synthetic calibration-set generator (CI smoke)
+.github/workflows/           # ci.yml (unit/lint) + phase2-vision.yml (experiment)
+tests/                       # pytest for math/sequence/data/calibration/eval
 pyproject.toml
 ```
 
 ## Status
 
-Proposal + mathematical core scaffold. No training/data pipelines yet.
+Phase 2 (vision→text bridge) in progress:
+
+- [x] torch-first math core (backend interface, Procrustes, ridge, whitening, resamplers, interleaver, fused loss)
+- [x] content-addressed feature cache + immutable manifests
+- [x] CalibrationBridge (Procrustes-init ridge + whitening) + held-out eval with acceptance gates
+- [x] CI: lint/typecheck/unit + `phase2-vision` experiment workflow
+- [ ] validation on the 10 SPACE benchmark images + hand captions
+- [ ] audio bridge + multi-branch fusion (Phase 3)
+
 See `PROPOSAL.md` for the staged plan and gates.
 
 Related: `../Space` hosts the benchmark suite, the GGUF micro specialists, and

@@ -1,4 +1,4 @@
-"""CLI: print the fusion plan for a set of ModelSpecs."""
+"""CLI: fusion plan, backend info, and experiment launchers."""
 from __future__ import annotations
 
 import argparse
@@ -6,8 +6,9 @@ import json
 import sys
 from pathlib import Path
 
-from .specs.models import SPECS, ModelSpec
 from . import __version__
+from .backend import get_backend
+from .specs.models import SPECS, ModelSpec
 
 
 def fusion_plan(specs: list[ModelSpec]) -> dict:
@@ -42,7 +43,22 @@ def main() -> None:
     parser.add_argument("--specs", nargs="*", default=None, help="subset of registered specs")
     parser.add_argument("--list", action="store_true", help="list registered specs")
     parser.add_argument("--json", action="store_true", help="emit plan as JSON")
+    parser.add_argument("--backend", action="store_true", help="report the active math backend")
+    parser.add_argument("--run", choices=["phase2"], default=None, help="launch an experiment")
     args = parser.parse_args()
+
+    if args.backend:
+        from .backend import eigen_available
+
+        b = get_backend()
+        print(f"active backend: {b.name}")
+        print(f"eigen native available: {eigen_available()}")
+        sys.exit(0)
+
+    if args.run:
+        from .run.phase2 import main as phase2_main
+
+        sys.exit(phase2_main([f"--images-dir={args.specs[0]}" if args.specs else "--images-dir=benchmarks/vision/images"]))
 
     if args.list:
         for name, spec in SPECS.items():

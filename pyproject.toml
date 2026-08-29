@@ -4,10 +4,18 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nexuss-fusion"
-version = "0.1.0"
+version = "0.2.0"
 description = "Fuse different architectures/modalities into one native model via representation alignment."
 requires-python = ">=3.10"
-dependencies = ["numpy>=1.24"]
+dependencies = ["torch>=2.1"]
+
+[project.optional-dependencies]
+eigen = ["pybind11>=2.10", "Eigen"]
+dev = ["pytest>=7.4", "ruff>=0.4", "mypy>=1.10"]
+hf = ["transformers>=4.46", "pillow>=10"]
+
+[project.entry-points."console_scripts"]
+nexuss-fusion = "nexuss_fusion.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -15,3 +23,19 @@ include = ["nexuss_fusion*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = ["transformers", "PIL", "torch"]
+ignore_missing_imports = true

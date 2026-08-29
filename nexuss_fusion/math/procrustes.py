@@ -1,53 +1,42 @@
-"""Optimal linear alignment between representation spaces.
-
-Closed-form maps that make any (source width, target width) pair compatible:
-
-  procrustes_map   — best orthogonal+scale map via thin SVD (rigid-motion init)
-  ridge_least_squares — general best linear map with ridge regularization
-  affine_map_lsq   — least-squares affine fit (with bias), gradient-usable init
-"""
+"""Optimal linear alignment between representation spaces (torch primary)."""
 from __future__ import annotations
 
-import numpy as np
+import torch
+
+from ..backend import Backend, get_backend
 
 
-def procrustes_map(source: np.ndarray, target: np.ndarray) -> tuple[np.ndarray, float, np.ndarray]:
-    """Return (R, s, U, ..., ) components of the orthogonal Procrustes problem.
+def procrustes_map(
+    source: torch.Tensor,
+    target: torch.Tensor,
+    backend: str | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Orthogonal+scale Procrustes init: minimize ||target - s*source@R||_F.
 
-    R, s minimize ||target - s * source @ R||_F over orthogonal R, scalar s>=0.
-    H*^T H = U Sigma V^T  ->  R = U V^T,  s = trace(Sigma)/||source||_F^2.
+    Returns (R, scale) via the resolved backend kernel.
     """
-    source = np.asarray(source, dtype=np.float64)
-    target = np.asarray(target, dtype=np.float64)
-    if source.shape[0] != target.shape[0]:
-        raise ValueError("paired matrices must share the number of rows")
-    corr = target.T @ source
-    U, sigma, Vt = np.linalg.svd(corr, full_matrices=False)
-    R = Vt.T @ U.T
-    denom = np.sum(source ** 2) + 1e-12
-    s = float(np.trace(np.diag(sigma))) / denom
-    scale = max(float(s), 0.0)
-    return R, scale, U, sigma, Vt
+    return _resolve_backend(backend).procrustes(source, target)
 
 
-def ridge_least_squares(source: np.ndarray, target: np.ndarray, lam: float = 1e-3) -> np.ndarray:
-    """Best linear map A minimizing ||target - source A||_F^2 + lam ||A||_F^2.
+def ridge_least_squares(
+    source: torch.Tensor,
+    target: torch.Tensor,
+    lam: float = 1e-3,
+    backend: str | None = None,
+) -> torch.Tensor:
+    """Best linear map minimizing ||target - source A||_F^2 + lam ||A||_F^2."""
+    return _resolve_backend(backend).ridge_least_squares(source, target, lam)
 
-    A = (source^T source + lam I)^-1 source^T target   (d_src x d_tgt)
-    """
-    source = np.asarray(source, dtype=np.float64)
-    target = np.asarray(target, dtype=np.float64)
-    design = source.T @ source + lam * np.eye(source.shape[1])
-    return np.linalg.solve(design, source.T @ target)
 
-
-def affine_map_lsq(source: np.ndarray, target: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def affine_map_lsq(source: torch.Tensor, target: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """Least-squares affine fit y ~= x @ W + b. Returns (W, b)."""
-    source = np.asarray(source, dtype=np.float64)
-    target = np.asarray(target, dtype=np.float64)
-    if source.shape[0] != target.shape[0]:
-        raise ValueError("paired matrices must share the number of rows")
-    X = np.hstack([source, np.ones((source.shape[0], 1))])
-    coefs, *_ = np.linalg.lstsq(X, target, rcond=None)
-    W, b = coefs[:-1], coefs[-1]
-    return W, b.reshape(1, -1) if b.ndim else b.reshape(1, 1)
+    source = source.double()
+    target = target.double()
+    ones = torch.ones((source.shape[0], 1), device=source.device, dtype=source.dtype)
+    X = torch.cat([source, ones], dim=1)
+    coefs = torch.linalg.lstsq(X, target).solution
+    return coefs[:-1], coefs[-1:]
+
+
+def _resolve_backend(backend: str | None) -> Backend:
+    return get_backend(backend) if backend else get_backend()
