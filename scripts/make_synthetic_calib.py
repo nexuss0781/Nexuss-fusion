@@ -59,8 +59,9 @@ def render(rng, out_path: Path, size: int = 256) -> dict:
         elif shape == "triangle":
             draw.polygon([(cx, cy - r), (cx - r, cy + r), (cx + r, cy + r)], fill=fill)
         else:  # stripes
-            for i in range(-size, size, max(4, r // 6)):
-                draw.rectangle((i, 0, i + mx, size), fill=fill)
+            stripe = max(4, r // 6)
+            for i in range(-size, size, stripe):
+                draw.rectangle((i, 0, i + stripe, size), fill=fill)
     img.convert("RGB").save(out_path, "JPEG")
     return {
         "background": _color_name(bg),
