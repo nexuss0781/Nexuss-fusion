@@ -136,6 +136,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--te", type=float, default=0.2)
     parser.add_argument("--lam", type=float, default=1e-3)
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument(
+        "--extract-only",
+        action="store_true",
+        help="populate the feature cache with --extract and exit 0 without fitting",
+    )
+    parser.add_argument(
+        "--no-strict",
+        action="store_true",
+        help="report gates in phase2.json but exit 0 even when they fail",
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(
@@ -146,12 +156,17 @@ def main(argv: list[str] | None = None) -> int:
     cache = FeaturesCache(args.cache)
     if args.extract:
         extract(images_dir, cache)
+    if args.extract_only:
+        return 0
 
     result = run_phase2(
         images_dir, Path(args.cache), Path(args.out), seed=args.seed, te=args.te, lam=args.lam
     )
     print(json.dumps(result, indent=2, sort_keys=True))
-    return 0 if all(result["gates"].values()) else 1
+    passed = all(result["gates"].values())
+    if args.no_strict:
+        return 0
+    return 0 if passed else 1
 
 
 if __name__ == "__main__":
