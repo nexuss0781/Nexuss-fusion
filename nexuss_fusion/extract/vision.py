@@ -44,7 +44,10 @@ class VisionExtractor:
     def encode_image(self, image_pil) -> torch.Tensor:
         processor, _ = self._ensure()
         inputs = processor(images=image_pil, return_tensors="pt")
-        return self.encode_pixel_values(inputs["pixel_values"])
+        pixel_values = inputs["pixel_values"]
+        if pixel_values.dim() == 5:  # video-capable SmolVLM: (B, frames, C, H, W)
+            pixel_values = pixel_values[:, 0]
+        return self.encode_pixel_values(pixel_values)
 
     def encode_image_batch_cached(self, image_paths: list[str], cache) -> torch.Tensor:
         from PIL import Image
