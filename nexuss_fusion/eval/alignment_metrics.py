@@ -23,7 +23,7 @@ def alignment_report(source: torch.Tensor, target: torch.Tensor, bridge: dict, s
     ortho_pred = CalibrationBridge.apply_orthogonal(source, bridge)
     random_a = torch.randn_like(bridge["A"], generator=rng)
     norm_src = bridge["normalizer"].transform(source.double())
-    zero_pred = norm_src.new_zeros_like(target)
+    zero_pred = torch.zeros_like(target)
 
     return {
         "cosine_ridge": float(cosine_similarity(ridge_pred, target).item()),
