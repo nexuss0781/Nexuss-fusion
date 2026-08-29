@@ -1,4 +1,5 @@
 """Whitening / scale-harmonization canonicalizer (torch, CPU/GPU-capable)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -18,7 +19,7 @@ class Normalizer:
     def __post_init__(self) -> None:
         self._dims = self.shape[-1]
 
-    def fit(self, stack: torch.Tensor) -> "Normalizer":
+    def fit(self, stack: torch.Tensor) -> Normalizer:
         flat = stack.reshape(-1, stack.shape[-1])
         self.mean = flat.mean(dim=0)
         self.std = flat.std(dim=0) + self.eps
@@ -46,7 +47,9 @@ class Normalizer:
         }
 
     @classmethod
-    def from_state(cls, shape: tuple[int, ...], state: dict[str, list[float]], eps: float = 1e-6) -> "Normalizer":
+    def from_state(
+        cls, shape: tuple[int, ...], state: dict[str, list[float]], eps: float = 1e-6
+    ) -> Normalizer:
         obj = cls(shape, eps)
         obj.mean = torch.tensor(state["mean"], dtype=torch.float32)
         obj.std = torch.tensor(state["std"], dtype=torch.float32)

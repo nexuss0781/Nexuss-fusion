@@ -1,4 +1,5 @@
 """Deterministic example-level splits (by key, ensures no image/caption leakage)."""
+
 from __future__ import annotations
 
 import hashlib

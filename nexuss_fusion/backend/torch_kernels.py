@@ -1,4 +1,5 @@
 """Procrustes / ridge alignment kernels over torch tensors."""
+
 from __future__ import annotations
 
 import torch

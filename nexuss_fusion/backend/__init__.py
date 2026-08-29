@@ -9,12 +9,13 @@
 Trainable modules stay torch-only (autograd). The eigen path never computes
 gradients, so it is opted into explicitly via NEXUSS_FUSION_BACKEND=eigen.
 """
+
 from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 import torch
 

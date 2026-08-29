@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import torch
 
 from nexuss_fusion.data.features_cache import FeaturesCache

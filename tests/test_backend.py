@@ -1,7 +1,6 @@
 import torch
 
 from nexuss_fusion.backend import get_backend
-from nexuss_fusion.backend import torch_kernels as tk
 from nexuss_fusion.math.procrustes import procrustes_map
 
 
@@ -23,7 +22,12 @@ def test_torch_backend_kernels_family_consistency():
     assert scale > 0
     A = b.ridge_least_squares(src, tgt, lam=0.01)
     assert A.shape == (12, 8)
-    norm = b.whiten(src, torch.zeros(12, dtype=torch.float64), torch.ones(12, dtype=torch.float64), torch.ones(12, dtype=torch.float64))
+    norm = b.whiten(
+        src,
+        torch.zeros(12, dtype=torch.float64),
+        torch.ones(12, dtype=torch.float64),
+        torch.ones(12, dtype=torch.float64),
+    )
     assert torch.equal(norm, src)
 
 

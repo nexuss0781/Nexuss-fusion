@@ -1,4 +1,5 @@
 """Optimal linear alignment between representation spaces (torch primary)."""
+
 from __future__ import annotations
 
 import torch

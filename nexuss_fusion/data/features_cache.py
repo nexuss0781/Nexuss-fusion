@@ -1,4 +1,5 @@
 """Compute-once feature cache keyed by content sha256 (the CPU-training enabler)."""
+
 from __future__ import annotations
 
 import json

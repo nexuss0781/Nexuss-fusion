@@ -1,4 +1,5 @@
 """Extract: frozen modality encoders producing cached features."""
+
 from __future__ import annotations
 
 from .text import TextEmbedder
