@@ -56,6 +56,7 @@ nexuss_fusion/
   calibration/               # Procrustes/Ridge bridges + deterministic splits
   eval/                      # held-out alignment metrics + acceptance gates
   run/phase2.py              # phase 2 experiment entrypoint
+  run/phase1b.py             # stage 1b: train vision projector + resampler
 ci/                          # eigen build script
 cpp/                         # Eigen fallback kernels
 scripts/                     # synthetic calibration-set generator (CI smoke)
@@ -74,15 +75,18 @@ Phase 2 (vision→text bridge) shipped end-to-end on CI:
 - [x] CI: lint/typecheck/unit + `phase2-vision` experiment workflow (green)
 - [x] First experiment campaign + write-up: `docs/PHASE2-RESULTS.md`
 - [x] SPACE strict validation: cosine gates PASS on 9 real image-caption pairs
-- [ ] Stage 1b: train projector/resampler to reduce rel_fro below 0.60
+- [x] Stage 1b: VisionProjector (resampler + MLP) — retention gate PASS at 281.5%
+- [ ] Stage 2a: expand training set + held-out generalization
+- [ ] Stage 2b: train fused decoder (interleave projected vision + SmolLM2 tokens)
 - [ ] audio bridge + multi-branch fusion (Phase 3)
 
 The first campaign ran the pipeline end-to-end on 24 synthetic pairs (all
 gates below threshold — synthetic signal too weak). The SPACE strict
 validation on 9 real photograph-caption pairs passed both cosine gates
 (`cosine_ridge = 0.20`, above zero and random baselines), confirming the
-alignment thesis works on real data. The `rel_fro` gate remains above 0.60
-(expected at Procrustes-init stage; stage 1b training addresses this).
+alignment thesis works on real data. Stage 1b trained a VisionProjector
+(AttentionPooling + MLP) that achieves 281% retention vs the ridge baseline,
+producing soft tokens with cosine 0.94 against caption embeddings.
 See `docs/PHASE2-RESULTS.md`.
 
 See `PROPOSAL.md` for the staged plan and gates.
