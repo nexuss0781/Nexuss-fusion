@@ -27,11 +27,11 @@ class TestAttentionPooling:
         out = pool(x)
         assert out.shape == (4, 16, 512)
 
-    def test_budget_clamp(self) -> None:
+    def test_budget_exceeds_seq_len(self) -> None:
         pool = AttentionPooling(d_in=16, d_q=16, d_out=32, budget=128)
         x = torch.randn(1, 8, 16)
         out = pool(x)
-        assert out.shape == (1, 8, 32)
+        assert out.shape == (1, 128, 32)
 
     def test_grad_flows(self) -> None:
         pool = AttentionPooling(d_in=32, d_q=32, d_out=64, budget=4)
