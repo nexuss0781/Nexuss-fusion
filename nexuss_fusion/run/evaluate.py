@@ -131,7 +131,7 @@ def generate_caption(
     decoder.eval()
 
     with torch.no_grad():
-        vision_prefix = projector(patch_states.unsqueeze(0).unsqueeze(0))
+        vision_prefix = projector(patch_states.unsqueeze(0))
         bos = tokenizer.bos_token_id or tokenizer.eos_token_id
         prefix_ids = torch.tensor([[bos]], dtype=torch.long)
         prefix_embeds = decoder.get_input_embeddings()(prefix_ids)
