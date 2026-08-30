@@ -46,7 +46,7 @@ def load_cached_pairs(
     caption_embs_list: list[torch.Tensor] = []
     keys: list[str] = []
 
-    for image_path in sorted(images_dir.rglob("*.jpg")):
+    for image_path in sorted([*images_dir.rglob("*.jpg"), *images_dir.rglob("*.png")]):
         caption = captions.get(image_path.name)
         if not caption:
             continue
