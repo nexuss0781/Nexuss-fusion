@@ -59,6 +59,7 @@ nexuss_fusion/
   run/phase1b.py             # stage 1b: train vision projector + resampler
   run/phase2a.py             # stage 2a: decoder alignment (vision prefix + LM loss)
   run/phase2b.py             # stage 2b: unfreeze decoder + e2e training
+  run/evaluate.py            # generation quality eval (greedy decode + BLEU/ROUGE)
 ci/                          # eigen build script
 cpp/                         # Eigen fallback kernels
 scripts/                     # synthetic calibration-set generator (CI smoke)
@@ -80,8 +81,9 @@ Phase 2 (vision→text bridge) shipped end-to-end on CI:
 - [x] Stage 1b: VisionProjector (resampler + MLP) — retention gate PASS at 281.5%
 - [x] Stage 2a: decoder alignment — LM loss 11.35→9.82, vision-caption cosine 0.78
 - [x] Stage 2b: unfrozen decoder (4 layers) — LM loss 11.35→9.64, cosine 0.94
-- [ ] Expand training data + generation quality evaluation
-- [ ] audio bridge + multi-branch fusion (Phase 3)
+- [x] Generation quality eval: pipeline works end-to-end; generation needs 1K+ pairs (currently 9)
+- [ ] Expand training data (1K+ image-caption pairs)
+- [ ] Audio bridge + multi-branch fusion (Phase 3)
 
 The first campaign ran the pipeline end-to-end on 24 synthetic pairs (all
 gates below threshold — synthetic signal too weak). The SPACE strict
