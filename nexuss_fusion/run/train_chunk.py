@@ -1,10 +1,13 @@
 """Train vision projection on one chunk of Flickr30k data.
 
 Usage:
-    python -m nexuss_fusion.run.train_chunk --chunk-dir chunk_01 --out chunk_01_model
+    python -m nexuss_fusion.run.train_chunk --chunk-dir chunks/chunk_01/images \
+        --captions-file chunks/chunk_01/captions.json \
+        --cache features-cache --out chunk_01_model
 
-This script trains a VisionProjector on one chunk of image-caption pairs.
-It saves checkpoints every 100 epochs and outputs a final model file.
+This script trains a VisionProjector + unfrozen decoder layers on one chunk
+of image-caption pairs using LM cross-entropy loss (same as stage 2b).
+It saves checkpoints and outputs a final model file.
 """
 
 from __future__ import annotations
@@ -17,11 +20,12 @@ from pathlib import Path
 
 import torch
 import torch.nn as nn
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from ..calibration.bridge import CalibrationBridge
 from ..data import FeaturesCache
 from ..eval.alignment_metrics import cosine_similarity
-from ..extract import VisionExtractor
+from ..extract import TextEmbedder, VisionExtractor
+from ..extract.text import normalize_caption
 from ..math.projector import VisionProjector
 
 log = logging.getLogger("nexuss_fusion.train_chunk")
@@ -65,93 +69,169 @@ def train(
     patches: list[torch.Tensor],
     captions: list[str],
     budget: int = 64,
-    lr: float = 3e-4,
-    epochs: int = 200,
-    checkpoint_every: int = 50,
+    lr: float = 5e-6,
+    epochs: int = 50,
+    unfreeze_last_n: int = 4,
+    checkpoint_every: int = 10,
     out_dir: Path | None = None,
     seed: int = 42,
 ) -> dict:
     torch.manual_seed(seed)
 
-    projector = VisionProjector(d_in=768, d_out=960, budget=budget)
-    optimizer = torch.optim.AdamW(projector.parameters(), lr=lr, weight_decay=0.01)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
-
-    all_patches = torch.cat([p.double() for p in patches], dim=0).float()
-    bridge = CalibrationBridge.fit(all_patches.double(), all_patches.double(), lam=1e-3)
-    ridge_A = bridge["A"].float()
-    ridge_normalizer = bridge["normalizer"]
-    with torch.no_grad():
-        src_norm = ridge_normalizer.transform(all_patches.double()).float()
-        baseline_ridge = src_norm @ ridge_A
-        tgt = torch.cat([p.double() for p in patches], dim=0).float()
-        baseline_cos = cosine_similarity(baseline_ridge, tgt).item()
-
-    log.info(
-        "training: %d pairs, budget=%d, epochs=%d, baseline_cos=%.4f",
-        len(patches),
-        budget,
-        epochs,
-        baseline_cos,
+    text_embedder = TextEmbedder()
+    tokenizer = AutoTokenizer.from_pretrained(
+        text_embedder.model_id, revision=text_embedder.revision
+    )
+    decoder = AutoModelForCausalLM.from_pretrained(
+        text_embedder.model_id, revision=text_embedder.revision, torch_dtype=torch.float32
     )
 
-    projector.train()
+    for p in decoder.parameters():
+        p.requires_grad = False
+
+    layers = decoder.model.layers
+    for layer in layers[-unfreeze_last_n:]:
+        for p in layer.parameters():
+            p.requires_grad = True
+    for p in decoder.lm_head.parameters():
+        p.requires_grad = True
+
+    trainable = sum(p.numel() for p in decoder.parameters() if p.requires_grad)
+    total = sum(p.numel() for p in decoder.parameters())
+    log.info("unfroze last %d layers: %d / %d params trainable", unfreeze_last_n, trainable, total)
+
+    projector = VisionProjector(d_in=768, d_out=960, budget=budget)
+
+    all_patches = torch.cat([p.double() for p in patches], dim=0).float()
+
+    encodings = tokenizer(
+        [normalize_caption(c) for c in captions],
+        return_tensors="pt",
+        padding=True,
+        truncation=True,
+        max_length=128,
+    )
+    input_ids = encodings["input_ids"]
+    attention_mask = encodings["attention_mask"]
+
+    params = list(projector.parameters()) + [p for p in decoder.parameters() if p.requires_grad]
+    optimizer = torch.optim.AdamW(params, lr=lr, weight_decay=0.01)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+
+    log.info(
+        "training chunk: %d pairs, budget=%d, epochs=%d",
+        len(captions),
+        budget,
+        epochs,
+    )
+
     best_loss = float("inf")
 
     for epoch in range(1, epochs + 1):
         optimizer.zero_grad()
-        projected = projector(all_patches.unsqueeze(1))
-        projected_pooled = projected.mean(dim=1)
-        loss = nn.functional.mse_loss(projected_pooled, tgt)
+
+        vision_prefix = projector(all_patches.unsqueeze(1))
+
+        with torch.no_grad():
+            text_embeds = decoder.get_input_embeddings()(input_ids)
+
+        combined = torch.cat([vision_prefix, text_embeds], dim=1)
+        vision_mask = torch.ones(
+            vision_prefix.shape[:2], dtype=attention_mask.dtype
+        )
+        combined_mask = torch.cat([vision_mask, attention_mask], dim=1)
+        position_ids = torch.arange(combined.shape[1]).unsqueeze(0).expand(
+            combined.shape[0], -1
+        )
+
+        out = decoder(
+            inputs_embeds=combined,
+            attention_mask=combined_mask,
+            position_ids=position_ids,
+        )
+        token_logits = out.logits[:, budget:, :]
+
+        shift_logits = token_logits[:, :-1, :].contiguous()
+        shift_labels = input_ids[:, 1:].contiguous()
+        shift_labels[shift_labels == tokenizer.pad_token_id] = -100
+        loss = nn.functional.cross_entropy(
+            shift_logits.reshape(-1, shift_logits.shape[-1]),
+            shift_labels.reshape(-1),
+        )
+
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(params, 1.0)
         optimizer.step()
         scheduler.step()
 
         if epoch % checkpoint_every == 0 or epoch == epochs:
-            projector.eval()
             with torch.no_grad():
-                proj_pooled = projector(all_patches.unsqueeze(1)).mean(dim=1)
-                cos = cosine_similarity(proj_pooled, tgt).item()
-                retention = cos / max(baseline_cos, 1e-8)
-            projector.train()
-            best_loss = min(best_loss, loss.item())
+                vision_pooled = vision_prefix.mean(dim=1)
+                caption_pooled = text_embedder.embed_batch_cached(
+                    [normalize_caption(c) for c in captions],
+                    FeaturesCache("features-cache"),
+                ).float()
+                cos = cosine_similarity(vision_pooled, caption_pooled).item()
 
-            log.info(
-                "epoch %d | loss %.4f | cosine %.4f | retention %.1f%%",
-                epoch,
-                loss.item(),
-                cos,
-                retention * 100,
-            )
+            log.info("epoch %d | loss %.4f | cosine %.4f", epoch, loss.item(), cos)
+            best_loss = min(best_loss, loss.item())
 
             if out_dir:
                 out_dir.mkdir(parents=True, exist_ok=True)
-                torch.save(projector.state_dict(), out_dir / f"checkpoint_epoch{epoch}.pt")
+                torch.save(
+                    {
+                        "projector": projector.state_dict(),
+                        "decoder_frozen": True,
+                        "unfreeze_last_n": unfreeze_last_n,
+                        "epoch": epoch,
+                        "loss": loss.item(),
+                        "cosine": cos,
+                    },
+                    out_dir / f"checkpoint_epoch{epoch}.pt",
+                )
 
     if out_dir:
-        torch.save(projector.state_dict(), out_dir / "final.pt")
+        torch.save(
+            {
+                "projector": projector.state_dict(),
+                "decoder_frozen": True,
+                "unfreeze_last_n": unfreeze_last_n,
+                "epoch": epochs,
+                "loss": loss.item(),
+                "cosine": cos,
+            },
+            out_dir / "final.pt",
+        )
 
     return {
-        "n_pairs": len(patches),
+        "n_pairs": len(captions),
         "budget": budget,
         "epochs": epochs,
         "final_loss": loss.item(),
         "best_loss": best_loss,
         "final_cosine": cos,
-        "retention": retention,
     }
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Train vision projection on one chunk")
-    parser.add_argument("--chunk-dir", required=True, help="Directory with images for this chunk")
-    parser.add_argument("--captions-file", default=None, help="Path to captions.json")
+    parser = argparse.ArgumentParser(
+        description="Train vision projection on one chunk"
+    )
+    parser.add_argument(
+        "--chunk-dir", required=True, help="Directory with images for this chunk"
+    )
+    parser.add_argument(
+        "--captions-file", default=None, help="Path to captions.json"
+    )
     parser.add_argument("--cache", default="features-cache")
-    parser.add_argument("--out", required=True, help="Output directory for model checkpoints")
-    parser.add_argument("--epochs", type=int, default=200)
-    parser.add_argument("--lr", type=float, default=3e-4)
+    parser.add_argument(
+        "--out", required=True, help="Output directory for model checkpoints"
+    )
+    parser.add_argument("--epochs", type=int, default=50)
+    parser.add_argument("--lr", type=float, default=5e-6)
     parser.add_argument("--budget", type=int, default=64)
-    parser.add_argument("--checkpoint-every", type=int, default=50)
+    parser.add_argument("--unfreeze-last-n", type=int, default=4)
+    parser.add_argument("--checkpoint-every", type=int, default=10)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args(argv)
@@ -176,6 +256,7 @@ def main(argv: list[str] | None = None) -> int:
         budget=args.budget,
         lr=args.lr,
         epochs=args.epochs,
+        unfreeze_last_n=args.unfreeze_last_n,
         checkpoint_every=args.checkpoint_every,
         out_dir=Path(args.out),
         seed=args.seed,
