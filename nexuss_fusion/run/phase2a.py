@@ -150,14 +150,10 @@ def train_decoder(
         vision_mask = torch.ones(vision_prefix.shape[:2], dtype=attention_mask.dtype)
         combined_mask = torch.cat([vision_mask, attention_mask], dim=1)  # (N, budget+L)
 
-        # Forward pass through frozen decoder
+        # Forward pass through frozen decoder (includes lm_head)
         position_ids = torch.arange(combined.shape[1]).unsqueeze(0).expand(combined.shape[0], -1)
         out = decoder(inputs_embeds=combined, attention_mask=combined_mask, position_ids=position_ids)
-        logits = out.last_hidden_state  # (N, budget+L, 960)
-
-        # LM head: project back to vocab size
-        lm_head = decoder.lm_head  # (960, vocab_size)
-        token_logits = logits[:, budget:, :] @ lm_head.weight.T  # (N, L, vocab_size)
+        token_logits = out.logits[:, budget:, :]  # (N, L, vocab_size)
 
         # Loss: only on caption tokens (mask out vision prefix)
         shift_logits = token_logits[:, :-1, :].contiguous()
