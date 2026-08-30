@@ -178,11 +178,13 @@ def train_decoder(
                 ).float()
                 cos = cosine_similarity(vision_pooled, caption_pooled).item()
 
-            log_entries.append({
-                "epoch": epoch,
-                "loss": loss.item(),
-                "vision_caption_cosine": cos,
-            })
+            log_entries.append(
+                {
+                    "epoch": epoch,
+                    "loss": loss.item(),
+                    "vision_caption_cosine": cos,
+                }
+            )
             log.info(
                 "epoch %d | loss %.4f | vision-caption cosine %.4f",
                 epoch,

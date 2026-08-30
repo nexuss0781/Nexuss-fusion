@@ -9,6 +9,7 @@ the captions describe the same visual statistics that a vision encoder can
 pick up (dominant color, geometry, brightness), so Procrustes/Ridge bridges
 have learnable signal even on synthetic inputs.
 """
+
 from __future__ import annotations
 
 import json

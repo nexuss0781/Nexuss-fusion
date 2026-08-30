@@ -30,9 +30,7 @@ MODEL_ID = "HuggingFaceTB/SmolLM2-360M-Instruct"
 REVISION = "main"
 
 
-def load_pairs(
-    images_dir: Path, cache: FeaturesCache
-) -> tuple[list[torch.Tensor], list[str], list[str]]:
+def load_pairs(images_dir: Path, cache: FeaturesCache) -> tuple[list[torch.Tensor], list[str], list[str]]:
     captions_raw: dict[str, str] = {}
     captions_file = images_dir / "captions.json"
     if captions_file.exists():
@@ -211,8 +209,12 @@ def main(argv: list[str] | None = None) -> int:
     for i, (patches, ref, name) in enumerate(zip(patches_list, ref_captions, image_names, strict=True)):
         log.info("generating caption for %s (%d/%d)", name, i + 1, len(image_names))
         generated = generate_caption(
-            patches.float(), projector, tokenizer, decoder,
-            budget=args.budget, max_new_tokens=args.max_new_tokens,
+            patches.float(),
+            projector,
+            tokenizer,
+            decoder,
+            budget=args.budget,
+            max_new_tokens=args.max_new_tokens,
         )
         bleu = compute_bleu(generated, ref)
         rouge = compute_rouge_l(generated, ref)
@@ -221,14 +223,16 @@ def main(argv: list[str] | None = None) -> int:
         all_bleu4.append(bleu["bleu4"])
         all_rouge.append(rouge)
 
-        results.append({
-            "image": name,
-            "reference": ref,
-            "generated": generated,
-            "bleu1": bleu["bleu1"],
-            "bleu4": bleu["bleu4"],
-            "rouge_l": rouge,
-        })
+        results.append(
+            {
+                "image": name,
+                "reference": ref,
+                "generated": generated,
+                "bleu1": bleu["bleu1"],
+                "bleu4": bleu["bleu4"],
+                "rouge_l": rouge,
+            }
+        )
         log.info("  ref:  %s", ref)
         log.info("  gen:  %s", generated)
         log.info("  bleu1=%.3f bleu4=%.3f rouge_l=%.3f", bleu["bleu1"], bleu["bleu4"], rouge)

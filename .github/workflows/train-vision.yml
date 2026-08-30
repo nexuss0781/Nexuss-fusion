@@ -1,0 +1,164 @@
+name: train-vision
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["nexuss_fusion/**", "bench/flickr30k/**", ".github/workflows/train-vision.yml"]
+
+jobs:
+  # Step 1: Download Flickr30k + split into chunks
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install "transformers>=4.46" "pillow>=10" num2words "datasets>=2.0" pytest
+
+      - name: Unit tests
+        run: pytest -q
+
+      - name: Download Flickr30k (10 images for test)
+        run: python scripts/download_flickr30k.py --output bench/flickr30k --max-images 10
+
+      - name: Extract features for all images
+        run: |
+          python -m nexuss_fusion.run.phase2 --images-dir bench/flickr30k --cache features-cache --extract --extract-only
+
+      - name: Split into chunks
+        run: |
+          python - <<'PYEOF'
+          import json, shutil
+          from pathlib import Path
+
+          flickr = Path("bench/flickr30k")
+          captions = json.loads((flickr / "captions.json").read_text())
+          images = sorted((flickr / "images").glob("*.jpg"))
+          n_chunks = min(20, len(images))
+          chunk_size = max(1, len(images) // n_chunks)
+
+          for i in range(n_chunks):
+              chunk_dir = Path(f"chunks/chunk_{i+1:02d}/images")
+              chunk_dir.mkdir(parents=True, exist_ok=True)
+              start = i * chunk_size
+              end = start + chunk_size if i < n_chunks - 1 else len(images)
+              chunk_caps = {}
+              for img in images[start:end]:
+                  shutil.copy2(img, chunk_dir / img.name)
+                  if img.name in captions:
+                      chunk_caps[img.name] = captions[img.name]
+              (Path(f"chunks/chunk_{i+1:02d}") / "captions.json").write_text(
+                  json.dumps(chunk_caps, indent=2)
+              )
+              print(f"chunk_{i+1:02d}: {len(chunk_dir.glob('*.jpg'))} images")
+          print(f"created {n_chunks} chunks")
+          PYEOF
+
+      - name: Upload chunks artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-chunks
+          path: chunks/
+          retention-days: 1
+
+  # Step 2: Train on each chunk (20 parallel jobs)
+  train:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install "transformers>=4.46" "pillow>=10" num2words pytest
+
+      - name: Download chunks artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: all-chunks
+          path: chunks/
+
+      - name: Extract features for this chunk
+        run: |
+          CHUNK_DIR="chunks/chunk_$(printf '%02d' ${{ matrix.chunk }})/images"
+          python -m nexuss_fusion.run.phase2 --images-dir "chunks/chunk_$(printf '%02d' ${{ matrix.chunk }})" --cache features-cache --extract --extract-only
+
+      - name: Train chunk ${{ matrix.chunk }}
+        run: |
+          CHUNK_NUM=$(printf '%02d' ${{ matrix.chunk }})
+          python -m nexuss_fusion.run.train_chunk \
+            --chunk-dir "chunks/chunk_${CHUNK_NUM}/images" \
+            --captions-file "chunks/chunk_${CHUNK_NUM}/captions.json" \
+            --cache features-cache \
+            --out "chunk_${CHUNK_NUM}_model" \
+            --epochs 200 \
+            --checkpoint-every 50 \
+            --verbose
+
+      - name: Upload chunk model
+        uses: actions/upload-artifact@v4
+        with:
+          name: chunk-${{ matrix.chunk }}-model
+          path: chunk_*_model/
+          retention-days: 7
+
+  # Step 3: Merge all chunks into one model
+  merge:
+    needs: train
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install "transformers>=4.46" "pillow>=10" num2words
+
+      - name: Download all chunk models
+        uses: actions/download-artifact@v4
+        with:
+          pattern: chunk-*-model
+          path: chunks/
+
+      - name: Merge into final model
+        run: |
+          python -m nexuss_fusion.run.merge_chunks \
+            --chunks-dir chunks \
+            --out final_model
+
+      - name: Upload final model
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexuss-fusion-vision-model
+          path: final_model/
+          retention-days: 30
+
+      - name: Surface merge info
+        run: |
+          python - <<'EOF'
+          import json
+          from pathlib import Path
+          p = Path("final_model/merge_info.json")
+          r = json.loads(p.read_text()) if p.exists() else {"status": "missing"}
+          print(json.dumps(r, indent=2))
+          EOF

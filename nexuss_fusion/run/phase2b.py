@@ -28,9 +28,7 @@ from ..math.projector import VisionProjector
 log = logging.getLogger("nexuss_fusion.phase2b")
 
 
-def load_pairs(
-    images_dir: Path, cache: FeaturesCache
-) -> tuple[list[torch.Tensor], list[str]]:
+def load_pairs(images_dir: Path, cache: FeaturesCache) -> tuple[list[torch.Tensor], list[str]]:
     captions: dict[str, str] = {}
     captions_file = images_dir / "captions.json"
     if captions_file.exists():
