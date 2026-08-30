@@ -19,6 +19,7 @@ from pathlib import Path
 
 import torch
 import torch.nn as nn
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from ..data import FeaturesCache
 from ..eval.alignment_metrics import cosine_similarity
@@ -86,7 +87,10 @@ def train_decoder(
 
     # Load frozen models
     text_embedder = TextEmbedder()
-    tokenizer, decoder = text_embedder._ensure()
+    tokenizer = AutoTokenizer.from_pretrained(text_embedder.model_id, revision=text_embedder.revision)
+    decoder = AutoModelForCausalLM.from_pretrained(
+        text_embedder.model_id, revision=text_embedder.revision, torch_dtype=torch.float32
+    )
     decoder.eval()
     for p in decoder.parameters():
         p.requires_grad = False
