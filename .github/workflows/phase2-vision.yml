@@ -138,3 +138,51 @@ jobs:
           path: |
             phase1b-results/
             features-cache/*.pt
+
+  stage2a:
+    needs: stage1b
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install "transformers>=4.46" "pillow>=10" num2words pytest
+
+      - name: Cache populates for SPACE benchmark images
+        run: |
+          python -m nexuss_fusion.run.phase2 --images-dir bench/space --cache features-cache --extract --extract-only
+
+      - name: Stage 1b — train vision projector
+        run: |
+          python -m nexuss_fusion.run.phase1b --images-dir bench/space --cache features-cache --out phase1b-results
+
+      - name: Stage 2a — train decoder alignment (vision prefix + LM loss)
+        run: |
+          python -m nexuss_fusion.run.phase2a --images-dir bench/space --cache features-cache --out phase2a-results
+
+      - name: Surface stage 2a results
+        run: |
+          python - <<'EOF'
+          import json
+          from pathlib import Path
+          p = Path("phase2a-results/phase2a.json")
+          r = json.loads(p.read_text()) if p.exists() else {"status": "missing"}
+          print(json.dumps(r, indent=2))
+          EOF
+
+      - name: Upload stage 2a results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage2a-results
+          path: |
+            phase2a-results/
+            phase1b-results/
+            features-cache/*.pt
