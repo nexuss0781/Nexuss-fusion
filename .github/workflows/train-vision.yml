@@ -10,7 +10,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Step 1: Prepare data + extract features + split into chunks
   prepare:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -31,6 +30,15 @@ jobs:
       - name: Extract features for SPACE images
         run: |
           python -m nexuss_fusion.run.phase2 --images-dir bench/space --cache features-cache --extract --extract-only
+
+      - name: Train stage1b projector init
+        run: |
+          python -m nexuss_fusion.run.phase1b \
+            --images-dir bench/space \
+            --cache features-cache \
+            --budget 64 \
+            --epochs 200 \
+            --out stage1b-results
 
       - name: Split SPACE images into 1 chunk (verify)
         run: |
@@ -61,7 +69,13 @@ jobs:
           path: chunks/
           retention-days: 1
 
-  # Step 2: Train on chunk 1 (single verify job)
+      - name: Upload projector weights
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage1b-weights
+          path: stage1b-results/
+          retention-days: 1
+
   train:
     needs: prepare
     runs-on: ubuntu-latest
@@ -83,6 +97,12 @@ jobs:
           name: all-chunks
           path: chunks/
 
+      - name: Download projector weights
+        uses: actions/download-artifact@v4
+        with:
+          name: stage1b-weights
+          path: stage1b-results/
+
       - name: Extract features for chunk
         run: |
           python -m nexuss_fusion.run.phase2 --images-dir "chunks/chunk_01" --cache features-cache --extract --extract-only
@@ -94,6 +114,7 @@ jobs:
             --captions-file "chunks/chunk_01/captions.json" \
             --cache features-cache \
             --out "chunk_01_model" \
+            --init-projector "stage1b-results/vision_projector.pt" \
             --epochs 50 \
             --checkpoint-every 10 \
             --verbose
@@ -105,7 +126,6 @@ jobs:
           path: chunk_01_model/
           retention-days: 7
 
-  # Step 3: Merge (single chunk = just copy)
   merge:
     needs: train
     runs-on: ubuntu-latest
