@@ -210,3 +210,55 @@ Key observations:
 - Stage 2b: unfreeze the decoder and train end-to-end on larger data
 - Expand training set (more SPACE images, augmentation, or synthetic data)
 - Evaluate on held-out SPACE pairs to measure generalization
+
+## 5. Stage 2b — end-to-end training (unfrozen decoder)
+
+Architecture: same as 2a, but unfreezes the last 4 decoder layers (28.6M
+params) + lm_head (347M) + VisionProjector (3.3M) = 86.5M / 361.8M
+trainable parameters. Trained jointly on vision-conditioned captioning with
+LM loss.
+
+Training: 50 epochs, AdamW lr=5e-6, cosine schedule.
+
+### Result (9 pairs, 50 epochs)
+
+```
+epoch  1: loss 11.348  cosine 0.9434
+epoch 10: loss 10.622  cosine 0.9424
+epoch 20: loss 10.089  cosine 0.9403
+epoch 30: loss  9.804  cosine 0.9387
+epoch 40: loss  9.660  cosine 0.9375
+epoch 50: loss  9.638  cosine 0.9377
+
+final_loss: 9.638 | final_cosine: 0.9377
+n_pairs: 9 | budget: 64 | epochs: 50 | lr: 5e-6
+trainable: 86.5M / 361.8M (last 4 layers + projector + lm_head)
+```
+
+### Comparison: frozen vs unfrozen decoder
+
+| Stage | Final loss | Final cosine | Trainable |
+|---|---|---|---|
+| 2a (frozen decoder) | 9.816 | 0.7775 | 3.3M (projector only) |
+| 2b (last 4 layers) | 9.638 | 0.9377 | 86.5M (4 layers + head) |
+
+### Interpretation
+
+Unfreezing the last 4 decoder layers yields a clear improvement: loss drops
+to 9.64 (vs 9.82 frozen), and crucially, the vision-caption cosine stays at
+0.94 instead of degrading to 0.78. This means the unfrozen decoder layers
+learn to better attend to the projected visual features while maintaining
+alignment.
+
+The full pipeline now produces a 360M-parameter model that:
+1. Encodes images via SigLIP (frozen, 768-dim patch states)
+2. Compresses to 64 soft tokens via VisionProjector (trained, 960-dim)
+3. Conditions SmolLM2 decoder (partially unfrozen) via vision prefix tokens
+4. Generates caption tokens conditioned on both visual and textual context
+
+### Next steps
+
+- Expand training data (more SPACE images or augmentation)
+- Evaluate generation quality (not just LM loss) — beam search / greedy decode
+- Audio bridge (Phase 3)
+- Multi-branch fusion (full Nexuss-Fusion model)

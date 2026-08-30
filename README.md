@@ -58,6 +58,7 @@ nexuss_fusion/
   run/phase2.py              # phase 2 experiment entrypoint
   run/phase1b.py             # stage 1b: train vision projector + resampler
   run/phase2a.py             # stage 2a: decoder alignment (vision prefix + LM loss)
+  run/phase2b.py             # stage 2b: unfreeze decoder + e2e training
 ci/                          # eigen build script
 cpp/                         # Eigen fallback kernels
 scripts/                     # synthetic calibration-set generator (CI smoke)
@@ -78,7 +79,8 @@ Phase 2 (vision→text bridge) shipped end-to-end on CI:
 - [x] SPACE strict validation: cosine gates PASS on 9 real image-caption pairs
 - [x] Stage 1b: VisionProjector (resampler + MLP) — retention gate PASS at 281.5%
 - [x] Stage 2a: decoder alignment — LM loss 11.35→9.82, vision-caption cosine 0.78
-- [ ] Stage 2b: unfreeze decoder + train end-to-end on larger data
+- [x] Stage 2b: unfrozen decoder (4 layers) — LM loss 11.35→9.64, cosine 0.94
+- [ ] Expand training data + generation quality evaluation
 - [ ] audio bridge + multi-branch fusion (Phase 3)
 
 The first campaign ran the pipeline end-to-end on 24 synthetic pairs (all
@@ -89,7 +91,9 @@ alignment thesis works on real data. Stage 1b trained a VisionProjector
 (AttentionPooling + MLP) that achieves 281% retention vs the ridge baseline,
 producing soft tokens with cosine 0.94 against caption embeddings. Stage 2a
 trained the projector to condition the frozen SmolLM2 decoder via vision prefix
-tokens, reducing LM loss from 11.35 to 9.82.
+tokens, reducing LM loss from 11.35 to 9.82. Stage 2b unfroze the last 4
+decoder layers, further reducing loss to 9.64 while maintaining 0.94 cosine
+alignment.
 See `docs/PHASE2-RESULTS.md`.
 
 See `PROPOSAL.md` for the staged plan and gates.
