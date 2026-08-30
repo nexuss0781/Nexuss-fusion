@@ -43,7 +43,7 @@ def load_chunk(
     patches: list[torch.Tensor] = []
     captions: list[str] = []
 
-    for image_path in sorted(chunk_dir.glob("*.jpg")):
+    for image_path in sorted([*chunk_dir.glob("*.jpg"), *chunk_dir.glob("*.png")]):
         fname = image_path.name
         cap_list = captions_raw.get(fname, [])
         if not cap_list:
