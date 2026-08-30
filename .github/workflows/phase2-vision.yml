@@ -97,7 +97,7 @@ jobs:
             features-cache/*.pt
 
   stage1b:
-    needs: space-strict
+    needs: phase2
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
