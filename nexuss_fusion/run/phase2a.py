@@ -132,7 +132,8 @@ def train_decoder(
         optimizer.zero_grad()
 
         # Project vision tokens: (N, 768) → (N, budget, 960)
-        vision_prefix = projector(all_patches)  # (N, budget, 960)
+        # Reshape to (N, 1, 768) so VisionProjector treats each as a single-token sequence
+        vision_prefix = projector(all_patches.unsqueeze(1))  # (N, budget, 960)
 
         # Get text embeddings: (N, L, 960)
         with torch.no_grad():
