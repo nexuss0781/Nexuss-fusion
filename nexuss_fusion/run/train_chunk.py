@@ -75,6 +75,7 @@ def train(
     checkpoint_every: int = 10,
     out_dir: Path | None = None,
     seed: int = 42,
+    init_projector: Path | None = None,
 ) -> dict:
     torch.manual_seed(seed)
 
@@ -101,6 +102,9 @@ def train(
     log.info("unfroze last %d layers: %d / %d params trainable", unfreeze_last_n, trainable, total)
 
     projector = VisionProjector(d_in=768, d_out=960, budget=budget)
+    if init_projector is not None and init_projector.exists():
+        projector.load_state_dict(torch.load(init_projector, weights_only=True))
+        log.info("loaded init projector from %s", init_projector)
 
     all_patches = torch.cat([p.double() for p in patches], dim=0).float()
 
@@ -233,6 +237,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--unfreeze-last-n", type=int, default=4)
     parser.add_argument("--checkpoint-every", type=int, default=10)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--init-projector", default=None, help="Path to pre-trained projector weights")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args(argv)
 
@@ -260,6 +265,7 @@ def main(argv: list[str] | None = None) -> int:
         checkpoint_every=args.checkpoint_every,
         out_dir=Path(args.out),
         seed=args.seed,
+        init_projector=Path(args.init_projector) if args.init_projector else None,
     )
 
     (Path(args.out) / "result.json").write_text(json.dumps(result, indent=2))
