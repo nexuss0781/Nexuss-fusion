@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from .normalize import Normalizer, canonicalize_whiten
 from .procrustes import affine_map_lsq, procrustes_map, ridge_least_squares
+from .projector import VisionProjector
 from .resample import AttentionPooling, budget_for_audio, budget_for_image
 
 __all__ = [
@@ -13,6 +14,7 @@ __all__ = [
     "ridge_least_squares",
     "affine_map_lsq",
     "AttentionPooling",
+    "VisionProjector",
     "budget_for_audio",
     "budget_for_image",
 ]
