@@ -9,6 +9,7 @@ dist/
 features_cache/
 features-cache/
 phase2-results/
-bench/
+bench/*
+!bench/space/
 runs/
 *.so
