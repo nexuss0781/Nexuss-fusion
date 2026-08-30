@@ -4,7 +4,10 @@ on:
   push:
     branches: [main]
     paths: ["nexuss_fusion/**", "bench/space/**", ".github/workflows/phase2-vision.yml"]
-  workflow_dispatch:
+
+concurrency:
+  group: phase2-vision-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   phase2:

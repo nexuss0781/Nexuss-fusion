@@ -40,7 +40,11 @@ def main(argv: list[str] | None = None) -> int:
         if not final_path.exists():
             log.warning("skipping %s: no final.pt", chunk_dir)
             continue
-        state = torch.load(final_path, weights_only=True)
+        checkpoint = torch.load(final_path, weights_only=True)
+        if isinstance(checkpoint, dict) and "projector" in checkpoint:
+            state = checkpoint["projector"]
+        else:
+            state = checkpoint
         all_states.append(state)
         log.info("loaded %s", chunk_dir.name)
 
