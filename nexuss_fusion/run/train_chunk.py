@@ -21,8 +21,7 @@ import torch.nn as nn
 from ..calibration.bridge import CalibrationBridge
 from ..data import FeaturesCache
 from ..eval.alignment_metrics import cosine_similarity
-from ..extract import TextEmbedder, VisionExtractor
-from ..extract.text import caption_cache_key
+from ..extract import VisionExtractor
 from ..math.projector import VisionProjector
 
 log = logging.getLogger("nexuss_fusion.train_chunk")
@@ -38,7 +37,6 @@ def load_chunk(
         captions_raw = json.loads(captions_file.read_text())
 
     vision_model, vision_rev = VisionExtractor().model_id, VisionExtractor().revision
-    text_model, text_rev = TextEmbedder().model_id, TextEmbedder().revision
 
     patches: list[torch.Tensor] = []
     captions: list[str] = []
@@ -53,10 +51,8 @@ def load_chunk(
         img_key = cache.key(
             {"kind": "image", "model": vision_model, "revision": vision_rev, "image": str(image_path)}
         )
-        txt_key = caption_cache_key(cache, text_model, text_rev, caption)
         cached_img = cache.get(img_key)
-        cached_txt = cache.get(txt_key)
-        if cached_img is None or cached_txt is None:
+        if cached_img is None:
             continue
         patches.append(cached_img)
         captions.append(caption)
