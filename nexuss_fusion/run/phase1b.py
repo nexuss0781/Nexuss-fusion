@@ -18,6 +18,7 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 
+from ..calibration.bridge import CalibrationBridge
 from ..data import FeaturesCache
 from ..eval.alignment_metrics import cosine_similarity
 from ..extract import TextEmbedder, VisionExtractor
@@ -90,11 +91,16 @@ def train_projector(
     src = torch.cat([p.double() for p in patch_states_list], dim=0).float()  # (N, 768)
     tgt = torch.cat([p.double() for p in caption_embs_list], dim=0).float()  # (N, 960)
 
-    # Compute baseline cosine (mean-pooled vision vs caption)
+    # Fit ridge map on full data for baseline cosine (patch states 768 → caption space 960)
+    bridge = CalibrationBridge.fit(src.double(), tgt.double(), lam=1e-3)
+    ridge_A = bridge["A"].float()  # (768, 960)
+    ridge_normalizer = bridge["normalizer"]
     with torch.no_grad():
-        baseline_cos = cosine_similarity(src, tgt).item()
+        src_norm = ridge_normalizer.transform(src.double()).float()
+        baseline_ridge = src_norm @ ridge_A  # (N, 960)
+        baseline_cos = cosine_similarity(baseline_ridge, tgt).item()
 
-    log.info("baseline cosine (mean-pooled): %.4f", baseline_cos)
+    log.info("baseline cosine (ridge-projected): %.4f", baseline_cos)
     log.info("training projector: %d params", sum(p.numel() for p in projector.parameters()))
 
     projector.train()
