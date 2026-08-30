@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ["nexuss_fusion/**", "bench/flickr30k/**", ".github/workflows/train-vision.yml"]
+    paths: ["nexuss_fusion/**", "bench/space/**", ".github/workflows/train-vision.yml"]
 
 jobs:
-  # Step 1: Download Flickr30k + split into chunks
+  # Step 1: Prepare data + split into chunks
   prepare:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -20,28 +20,25 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-          python -m pip install "transformers>=4.46" "pillow>=10" num2words "datasets>=2.0" pytest
+          python -m pip install "transformers>=4.46" "pillow>=10" num2words pytest
 
       - name: Unit tests
         run: pytest -q
 
-      - name: Download Flickr30k (10 images for test)
-        run: python scripts/download_flickr30k.py --output bench/flickr30k --max-images 10
-
-      - name: Extract features for all images
+      - name: Extract features for SPACE images
         run: |
-          python -m nexuss_fusion.run.phase2 --images-dir bench/flickr30k --cache features-cache --extract --extract-only
+          python -m nexuss_fusion.run.phase2 --images-dir bench/space --cache features-cache --extract --extract-only
 
-      - name: Split into chunks
+      - name: Split SPACE images into chunks
         run: |
           python - <<'PYEOF'
           import json, shutil
           from pathlib import Path
 
-          flickr = Path("bench/flickr30k")
-          captions = json.loads((flickr / "captions.json").read_text())
-          images = sorted((flickr / "images").glob("*.jpg"))
-          n_chunks = min(20, len(images))
+          space = Path("bench/space")
+          captions_raw = json.loads((space / "captions.json").read_text())
+          images = sorted([*space.glob("*.jpg"), *space.glob("*.png")])
+          n_chunks = min(3, len(images))
           chunk_size = max(1, len(images) // n_chunks)
 
           for i in range(n_chunks):
@@ -52,13 +49,13 @@ jobs:
               chunk_caps = {}
               for img in images[start:end]:
                   shutil.copy2(img, chunk_dir / img.name)
-                  if img.name in captions:
-                      chunk_caps[img.name] = captions[img.name]
+                  if img.name in captions_raw:
+                      chunk_caps[img.name] = captions_raw[img.name]
               (Path(f"chunks/chunk_{i+1:02d}") / "captions.json").write_text(
                   json.dumps(chunk_caps, indent=2)
               )
-              print(f"chunk_{i+1:02d}: {len(chunk_dir.glob('*.jpg'))} images")
-          print(f"created {n_chunks} chunks")
+              print(f"chunk_{i+1:02d}: {len(list(chunk_dir.glob('*')))} images")
+          print(f"created {n_chunks} chunks from {len(images)} images")
           PYEOF
 
       - name: Upload chunks artifact
@@ -68,7 +65,7 @@ jobs:
           path: chunks/
           retention-days: 1
 
-  # Step 2: Train on each chunk (20 parallel jobs)
+  # Step 2: Train on each chunk (3 parallel jobs for test)
   train:
     needs: prepare
     runs-on: ubuntu-latest
@@ -76,7 +73,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        chunk: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
+        chunk: [1, 2, 3]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -96,8 +93,8 @@ jobs:
 
       - name: Extract features for this chunk
         run: |
-          CHUNK_DIR="chunks/chunk_$(printf '%02d' ${{ matrix.chunk }})/images"
-          python -m nexuss_fusion.run.phase2 --images-dir "chunks/chunk_$(printf '%02d' ${{ matrix.chunk }})" --cache features-cache --extract --extract-only
+          CHUNK_NUM=$(printf '%02d' ${{ matrix.chunk }})
+          python -m nexuss_fusion.run.phase2 --images-dir "chunks/chunk_${CHUNK_NUM}" --cache features-cache --extract --extract-only
 
       - name: Train chunk ${{ matrix.chunk }}
         run: |
@@ -146,13 +143,6 @@ jobs:
             --chunks-dir chunks \
             --out final_model
 
-      - name: Upload final model
-        uses: actions/upload-artifact@v4
-        with:
-          name: nexuss-fusion-vision-model
-          path: final_model/
-          retention-days: 30
-
       - name: Surface merge info
         run: |
           python - <<'EOF'
@@ -162,3 +152,10 @@ jobs:
           r = json.loads(p.read_text()) if p.exists() else {"status": "missing"}
           print(json.dumps(r, indent=2))
           EOF
+
+      - name: Upload final model
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexuss-fusion-vision-model
+          path: final_model/
+          retention-days: 30

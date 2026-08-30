@@ -28,7 +28,9 @@ from ..math.projector import VisionProjector
 log = logging.getLogger("nexuss_fusion.train_chunk")
 
 
-def load_chunk(chunk_dir: Path, cache: FeaturesCache, captions_file: Path | None = None) -> tuple[list[torch.Tensor], list[str]]:
+def load_chunk(
+    chunk_dir: Path, cache: FeaturesCache, captions_file: Path | None = None
+) -> tuple[list[torch.Tensor], list[str]]:
     captions_raw: dict[str, list[str]] = {}
     if captions_file is None:
         captions_file = chunk_dir.parent / "captions.json"
